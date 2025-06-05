@@ -156,6 +156,9 @@
         <td th:text="${emp.email}"></td>
         <td th:text="${emp.begda}"></td>
         <td th:text="${emp.endda}"></td>
+        <td>
+            <button type="button" class="view-detail-btn" th:data-employee-id="${emp.pernr}">정보 보기</button>
+        </td>
     </tr>
     </tbody>
 </table>
@@ -166,6 +169,67 @@
     <a th:href="@{/test-sap-api(page=${currentPage - 1}, size=${size}, filter=${filter})}" th:if="${currentPage > 1}">이전</a>
     <a th:href="@{/test-sap-api(page=${currentPage + 1}, size=${size}, filter=${filter})}">다음</a>
 </div>
+
+<div id="employeeDetailModal" style="
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    padding: 1.5rem;
+    z-index: 1000;
+    width: 450px;
+    max-height: 80%;
+    overflow-y: auto;
+    font-family: 'Segoe UI', sans-serif;
+    color: #333;
+">
+    <h2 style="margin-top: 0; color: #3498db;">직원 정보</h2>
+    <div id="employeeDetailContent" style="margin-bottom: 1rem;"></div>
+    <button id="viewMoreBtn" style="margin-right: 0.5rem; background: #2ecc71; color: #fff; border: none; padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer;">세부보기</button>
+    <button style="
+        background: #3498db;
+        color: #fff;
+        border: none;
+        padding: 0.4rem 0.8rem;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: background 0.3s;">
+        닫기
+    </button>
+</div>
+
+<div id="employeeFullDetailModal" style="
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+    padding: 1.5rem;
+    z-index: 1001;
+    width: 500px;
+    max-height: 80%;
+    overflow-y: auto;
+    font-family: 'Segoe UI', sans-serif;
+    color: #333;
+">
+    <h2 style="margin-top: 0; color: #27ae60;">세부 정보</h2>
+    <div id="employeeFullDetailContent" style="margin-bottom: 1rem;"></div>
+    <div style="text-align: right;">
+        <button onclick="document.getElementById('employeeFullDetailModal').style.display='none'"
+                style="background: #27ae60; color: #fff; border: none; padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer;">
+            닫기
+        </button>
+    </div>
+</div>
+
 
 <script>
     document.getElementById('downloadCsvBtn').addEventListener('click', function() {
@@ -195,6 +259,124 @@
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
+    });
+
+    <!-- 정보 보기 코드 -->
+    document.querySelectorAll('.view-detail-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const employeeId = btn.getAttribute('data-employee-id');
+            const url = `/employee-detail?employeeId=${encodeURIComponent(employeeId)}`;
+
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error("직원 정보 조회 실패!");
+                    return response.json();
+                })
+                .then(data => {
+                    console.log("✅ 직원 정보:", data);
+
+                    let html = `
+                    <dl>
+                        <dt style="font-weight: bold; margin-top: 0.5rem;">ID</dt><dd>${data.employeeId}</dd>
+                        <dt style="font-weight: bold; margin-top: 0.5rem;">이름</dt><dd>${data.firstName} ${data.lastName}</dd>
+                        <dt style="font-weight: bold; margin-top: 0.5rem;">부서</dt><dd>${data.departmentName}</dd>
+                        <dt style="font-weight: bold; margin-top: 0.5rem;">직급</dt><dd>${data.position}</dd>
+                        <dt style="font-weight: bold; margin-top: 0.5rem;">이메일</dt><dd>${data.workEmail}</dd>
+                        <dt style="font-weight: bold; margin-top: 0.5rem;">주소</dt><dd>${data.address}</dd>
+                        <dt style="font-weight: bold; margin-top: 0.5rem;">입사일</dt><dd>${data.hireDate || '-'}</dd>
+                    </dl>
+                    <hr style="margin: 1rem 0;"/>
+                    <strong style="color: #3498db;">역할 및 권한</strong>
+                    <ul style="padding-left: 1rem; list-style: disc;">
+                `;
+                    data.roles.forEach(r => {
+                        html += `<li><strong>${r.roleName}</strong> (${r.description})<br/>
+                             권한: ${r.privileges.map(p => p.privilegeName).join(', ')}</li>`;
+                    });
+                    html += '</ul>';
+
+                    document.getElementById('employeeDetailContent').innerHTML = html;
+                    document.getElementById('employeeDetailModal').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error(error);
+                    alert("직원 정보 조회 중 오류가 발생했습니다.");
+                });
+        });
+    });
+
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const modal = document.getElementById('employeeDetailModal');
+        const closeBtn = modal.querySelector('button');
+
+        closeBtn.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+
+        // 세부보기 버튼
+        const viewMoreBtn = document.getElementById('viewMoreBtn');
+        let currentEmployeeId = null;
+
+        document.querySelectorAll('.view-detail-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const employeeId = btn.getAttribute('data-employee-id');
+                currentEmployeeId = employeeId; // 🔥 나중에 세부보기에서 사용
+                const url = `/employee-detail?employeeId=${encodeURIComponent(employeeId)}`;
+                // ... 기존 정보 보기 코드 (생략)
+            });
+        });
+
+        viewMoreBtn.addEventListener('click', () => {
+            if (!currentEmployeeId) return;
+
+            const url = `/employee-detail?employeeId=${encodeURIComponent(currentEmployeeId)}`;
+            fetch(url)
+                .then(response => {
+                    if (!response.ok) throw new Error("세부 정보 조회 실패!");
+                    return response.json();
+                })
+                .then(data => {
+                    let html = '<dl>';
+                    for (const key in data) {
+                        let value = data[key];
+                        if (value === null || value === '') value = '-';
+
+                        // 🔥 객체나 배열인 경우 처리
+                        if (typeof value === 'object') {
+                            if (Array.isArray(value)) {
+                                // 배열 형태 (예: roles)
+                                if (key === 'roles') {
+                                    // 역할별로 보기 좋게 풀어쓰기
+                                    html += `<dt style="font-weight: bold; margin-top: 0.5rem;">${key}</dt>`;
+                                    html += '<dd><ul style="padding-left: 1rem; list-style: disc;">';
+                                    value.forEach(role => {
+                                        html += `<li><strong>${role.roleName}</strong> (${role.description})<br/>권한: ${role.privileges.map(p => p.privilegeName).join(', ')}</li>`;
+                                    });
+                                    html += '</ul></dd>';
+                                } else {
+                                    // 다른 배열은 JSON으로
+                                    html += `<dt>${key}</dt><dd>${JSON.stringify(value, null, 2)}</dd>`;
+                                }
+                            } else {
+                                // 단일 객체는 JSON으로 예쁘게
+                                html += `<dt>${key}</dt><dd><pre>${JSON.stringify(value, null, 2)}</pre></dd>`;
+                            }
+                        } else {
+                            // 단순 값은 그대로 출력
+                            html += `<dt style="font-weight: bold; margin-top: 0.5rem;">${key}</dt><dd>${value}</dd>`;
+                        }
+                    }
+                    html += '</dl>';
+
+                    document.getElementById('employeeFullDetailContent').innerHTML = html;
+                    document.getElementById('employeeFullDetailModal').style.display = 'block';
+                })
+                .catch(error => {
+                    console.error(error);
+                    alert("세부 정보 조회 중 오류가 발생했습니다.");
+                });
+        });
     });
 </script>
 </body>
