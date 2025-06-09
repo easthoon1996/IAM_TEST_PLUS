@@ -362,7 +362,7 @@
                                     html += `<dt>${key}</dt><dd>${JSON.stringify(value, null, 2)}</dd>`;
                                 }
                             } else {
-                                // 단일 객체는 JSON으로 예쁘게
+                                // 단일 객체는 JSON
                                 html += `<dt>${key}</dt><dd><pre>${JSON.stringify(value, null, 2)}</pre></dd>`;
                             }
                         } else {
@@ -388,7 +388,7 @@
             btn.addEventListener('click', () => {
                 const employeeId = btn.getAttribute('data-employee-id');
 
-                // 🔥 팝업으로 입력 받을 권한 객체/필드/값
+                // 팝업으로 입력 받을 권한 객체/필드/값
                 const object = prompt("권한 객체 ID를 입력하세요 (예: S_TCODE):");
                 if (!object) return;
                 const field = prompt("필드명을 입력하세요 (예: TCD):");
