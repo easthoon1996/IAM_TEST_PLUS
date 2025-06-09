@@ -4,6 +4,7 @@ import com.dreamsecurity.iam.config.RestTemplateConfig;
 import com.dreamsecurity.iam.model.EmployeeDto;
 import com.dreamsecurity.iam.model.EmployeeFormDto;
 import com.dreamsecurity.iam.service.EmployeeTestService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,6 +20,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 public class EmployeeTestController {
@@ -236,6 +238,40 @@ public class EmployeeTestController {
             } else {
                 return ResponseEntity.status(response.getStatusCode())
                         .body("직원 상세정보 조회 실패: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
+        }
+    }
+
+
+    // 권한 조회
+    @GetMapping("/check-authorization")
+    @ResponseBody
+    public ResponseEntity<?> checkAuth(
+            @RequestParam String employeeId,
+            @RequestParam String object,
+            @RequestParam String field,
+            @RequestParam String value) {
+
+        String url = String.format("%s%s/%s/CheckAuthorization?object=%s&field=%s&value=%s",
+                baseUrl, employeesApi, employeeId, object, field, value);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Basic " + Base64.getEncoder().encodeToString(sapMockAuth.getBytes()));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            // 🔥 JSON 응답을 바로 Map으로 받기
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
+
+            if (resp.getStatusCode().is2xxSuccessful()) {
+                return ResponseEntity.ok(resp.getBody());
+            } else {
+                return ResponseEntity.status(resp.getStatusCode()).body("권한 조회 실패: " + resp.getStatusCode());
             }
         } catch (Exception e) {
             e.printStackTrace();

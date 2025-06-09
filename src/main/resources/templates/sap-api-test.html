@@ -159,6 +159,9 @@
         <td>
             <button type="button" class="view-detail-btn" th:data-employee-id="${emp.pernr}">정보 보기</button>
         </td>
+        <td>
+            <button type="button" class="check-auth-btn" th:data-employee-id="${emp.pernr}">권한 검사</button>
+        </td>
     </tr>
     </tbody>
 </table>
@@ -376,6 +379,40 @@
                     console.error(error);
                     alert("세부 정보 조회 중 오류가 발생했습니다.");
                 });
+        });
+    });
+
+    // 권한 검사
+    document.addEventListener("DOMContentLoaded", () => {
+        document.querySelectorAll('.check-auth-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const employeeId = btn.getAttribute('data-employee-id');
+
+                // 🔥 팝업으로 입력 받을 권한 객체/필드/값
+                const object = prompt("권한 객체 ID를 입력하세요 (예: S_TCODE):");
+                if (!object) return;
+                const field = prompt("필드명을 입력하세요 (예: TCD):");
+                if (!field) return;
+                const value = prompt("필드값을 입력하세요 (예: SM30):");
+                if (!value) return;
+
+                // IAM 서버의 권한 검사 API 호출
+                const url = `/check-authorization?employeeId=${encodeURIComponent(employeeId)}&object=${encodeURIComponent(object)}&field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`;
+
+                fetch(url)
+                    .then(response => {
+                        if (!response.ok) throw new Error("권한 검사 실패!");
+                        return response.json();
+                    })
+                    .then(data => {
+                        console.log("✅ 권한 검사 결과:", data);
+                        alert(`사용자 ${employeeId}\n권한 객체 : ${object}\n필드 : ${field}\n값 : ${value}\n\n권한 존재 여부 : ${data.hasAuthorization}`);
+                    })
+                    .catch(error => {
+                        console.error(error);
+                        alert("권한 검사 중 오류가 발생했습니다.");
+                    });
+            });
         });
     });
 </script>
