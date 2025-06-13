@@ -19,6 +19,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -45,6 +46,8 @@ public class EmployeeTestController {
 
     @Value("${app.default-page-size}")
     private int defaultPageSize;
+
+    private final ObjectMapper mapper = new ObjectMapper();
 
     @GetMapping("/test-sap-api")
     public String testSapApi(
@@ -157,64 +160,7 @@ public class EmployeeTestController {
         return "redirect:/test-sap-api";
     }
 
-    // 권한 가져오기
-    @GetMapping("/employee-privileges")
-    @ResponseBody
-    public ResponseEntity<String> getEmployeePrivileges(@RequestParam String employeeId) {
-        String apiUrl = baseUrl + employeesApi + "/" + employeeId + "/Privileges";
-
-        String base64Creds = Base64.getEncoder().encodeToString(sapMockAuth.getBytes(StandardCharsets.UTF_8));
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Basic " + base64Creds);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, String.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                return ResponseEntity.ok(response.getBody());
-            } else {
-                return ResponseEntity.status(response.getStatusCode()).body("권한 조회 실패: " + response.getStatusCode());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
-        }
-    }
-
-    // 역할 가져오기
-    @GetMapping("/employee-roles")
-    @ResponseBody
-    public ResponseEntity<?> getEmployeeRoles(@RequestParam String employeeId) {
-        String apiUrl = baseUrl + employeesApi + "/" + employeeId + "/Roles";
-
-        String base64Creds = Base64.getEncoder().encodeToString(sapMockAuth.getBytes(StandardCharsets.UTF_8));
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Authorization", "Basic " + base64Creds);
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
-        try {
-            ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, String.class);
-
-            if (response.getStatusCode().is2xxSuccessful()) {
-                // JSON String을 다시 파싱해서 JSON 객체로 반환
-                ObjectMapper mapper = new ObjectMapper();
-                Object json = mapper.readValue(response.getBody(), Object.class);
-                return ResponseEntity.ok(json);
-            } else {
-                return ResponseEntity.status(response.getStatusCode()).body("역할 조회 실패: " + response.getStatusCode());
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
-        }
-    }
-
-    @GetMapping("/employee-detail")
+    /*@GetMapping("/employee-detail")
     @ResponseBody
     public ResponseEntity<?> getEmployeeDetail(@RequestParam String employeeId) {
         // 🔥 SAP Mock API 엔드포인트 (예: /Employees/{employeeId})
@@ -243,6 +189,85 @@ public class EmployeeTestController {
             e.printStackTrace();
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
         }
+    }*/
+
+    @GetMapping("/employee-detail")
+    @ResponseBody
+    public ResponseEntity<?> getEmployeeDetail(@RequestParam String employeeId) {
+        String apiUrl = baseUrl + employeesApi + "/" + employeeId;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Basic " + Base64.getEncoder().encodeToString(sapMockAuth.getBytes(StandardCharsets.UTF_8)));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                Map<String, Object> json = mapper.readValue(response.getBody(), Map.class);
+                return ResponseEntity.ok(json);
+            } else if (response.getStatusCode() == HttpStatus.NOT_FOUND) {
+                Map<String, Object> error = new HashMap<>();
+                error.put("error", Map.of("code", "NotFound", "message", "Employee not found"));
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+            } else {
+                return ResponseEntity.status(response.getStatusCode()).body("직원 상세정보 조회 실패: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/employee-roles")
+    @ResponseBody
+    public ResponseEntity<?> getEmployeeRoles(@RequestParam String employeeId) {
+        String apiUrl = baseUrl + employeesApi + "/" + employeeId + "/Roles";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Basic " + Base64.getEncoder().encodeToString(sapMockAuth.getBytes(StandardCharsets.UTF_8)));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                Map<String, Object> json = mapper.readValue(response.getBody(), Map.class);
+                return ResponseEntity.ok(json);
+            } else {
+                return ResponseEntity.status(response.getStatusCode()).body("역할 조회 실패: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/employee-privileges")
+    @ResponseBody
+    public ResponseEntity<?> getEmployeePrivileges(@RequestParam String employeeId) {
+        String apiUrl = baseUrl + employeesApi + "/" + employeeId + "/Privileges";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("Authorization", "Basic " + Base64.getEncoder().encodeToString(sapMockAuth.getBytes(StandardCharsets.UTF_8)));
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<String> entity = new HttpEntity<>(headers);
+
+        try {
+            ResponseEntity<String> response = restTemplate.exchange(apiUrl, HttpMethod.GET, entity, String.class);
+
+            if (response.getStatusCode().is2xxSuccessful()) {
+                Map<String, Object> json = mapper.readValue(response.getBody(), Map.class);
+                return ResponseEntity.ok(json);
+            } else {
+                return ResponseEntity.status(response.getStatusCode()).body("권한 조회 실패: " + response.getStatusCode());
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
+        }
     }
 
 
@@ -265,18 +290,40 @@ public class EmployeeTestController {
         HttpEntity<String> entity = new HttpEntity<>(headers);
 
         try {
-            // 🔥 JSON 응답을 바로 Map으로 받기
             ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, entity, Map.class);
 
             if (resp.getStatusCode().is2xxSuccessful()) {
-                return ResponseEntity.ok(resp.getBody());
+                Map<String, Object> body = resp.getBody();
+                // OData2 성공 응답: body가 이미 {d: ...} 구조면 그대로, 아니면 감싸기
+                if (body != null && body.containsKey("d")) {
+                    return ResponseEntity.ok(body);
+                } else {
+                    Map<String, Object> odata = new HashMap<>();
+                    odata.put("d", body);
+                    return ResponseEntity.ok(odata);
+                }
+            } else if (resp.getStatusCode() == HttpStatus.NOT_FOUND) {
+                // OData2 에러 구조
+                Map<String, Object> error = new HashMap<>();
+                Map<String, String> detail = new HashMap<>();
+                detail.put("code", "NotFound");
+                detail.put("message", "직원이 존재하지 않음");
+                error.put("error", detail);
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
             } else {
-                return ResponseEntity.status(resp.getStatusCode()).body("권한 조회 실패: " + resp.getStatusCode());
+                return ResponseEntity.status(resp.getStatusCode())
+                        .body("권한 조회 실패: " + resp.getStatusCode());
             }
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("오류: " + e.getMessage());
+            Map<String, Object> error = new HashMap<>();
+            Map<String, String> detail = new HashMap<>();
+            detail.put("code", "Exception");
+            detail.put("message", e.getMessage());
+            error.put("error", detail);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(error);
         }
     }
+
 
 }

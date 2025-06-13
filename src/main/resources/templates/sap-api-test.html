@@ -129,9 +129,9 @@
 
 
 <!-- 사용자 추가 버튼 -->
-<a href="/add">
+<!--<a href="/add">
     <button type="button">사용자 추가</button>
-</a>
+</a>-->
 
 <table id="userTable">
     <thead>
@@ -193,7 +193,7 @@
     <h2 style="margin-top: 0; color: #3498db;">직원 정보</h2>
     <div id="employeeDetailContent" style="margin-bottom: 1rem;"></div>
     <button id="viewMoreBtn" style="margin-right: 0.5rem; background: #2ecc71; color: #fff; border: none; padding: 0.3rem 0.7rem; border-radius: 4px; cursor: pointer;">세부보기</button>
-    <button style="
+    <button onclick="document.getElementById('employeeDetailModal').style.display='none'" style="
         background: #3498db;
         color: #fff;
         border: none;
@@ -271,116 +271,135 @@
             const url = `/employee-detail?employeeId=${encodeURIComponent(employeeId)}`;
 
             fetch(url)
-                .then(response => {
-                    if (!response.ok) throw new Error("직원 정보 조회 실패!");
-                    return response.json();
-                })
-                .then(data => {
-                    console.log("✅ 직원 정보:", data);
+                .then(response => response.json().then(json => ({status: response.status, body: json})))
+                .then(({status, body}) => {
+                    if (status === 200 && body.d) {
+                        const data = body.d;
+                        let html = `
+                        <dl>
+                            <dt>ID</dt><dd>${data.employeeId || '-'}</dd>
+                            <dt>이름</dt><dd>${data.firstName || '-'} ${data.lastName || '-'}</dd>
+                            <dt>부서</dt><dd>${data.departmentName || '-'}</dd>
+                            <dt>직급</dt><dd>${data.position || '-'}</dd>
+                            <dt>이메일</dt><dd>${data.workEmail || '-'}</dd>
+                            <dt>주소</dt><dd>${data.address || '-'}</dd>
+                            <dt>입사일</dt><dd>${data.hireDate || '-'}</dd>
+                        </dl>
+                        <strong>역할 및 권한</strong>
+                        <ul>
+                    `;
+                        if (data.roles && Array.isArray(data.roles)) {
+                            data.roles.forEach(r => {
+                                html += `<li><strong>${r.roleName}</strong> (${r.description})<br/>권한: ${r.privileges.map(p => p.privilegeName).join(', ')}</li>`;
+                            });
+                        } else {
+                            html += '<li>역할 정보가 없습니다.</li>';
+                        }
+                        html += '</ul>';
 
-                    let html = `
-                    <dl>
-                        <dt style="font-weight: bold; margin-top: 0.5rem;">ID</dt><dd>${data.employeeId}</dd>
-                        <dt style="font-weight: bold; margin-top: 0.5rem;">이름</dt><dd>${data.firstName} ${data.lastName}</dd>
-                        <dt style="font-weight: bold; margin-top: 0.5rem;">부서</dt><dd>${data.departmentName}</dd>
-                        <dt style="font-weight: bold; margin-top: 0.5rem;">직급</dt><dd>${data.position}</dd>
-                        <dt style="font-weight: bold; margin-top: 0.5rem;">이메일</dt><dd>${data.workEmail}</dd>
-                        <dt style="font-weight: bold; margin-top: 0.5rem;">주소</dt><dd>${data.address}</dd>
-                        <dt style="font-weight: bold; margin-top: 0.5rem;">입사일</dt><dd>${data.hireDate || '-'}</dd>
-                    </dl>
-                    <hr style="margin: 1rem 0;"/>
-                    <strong style="color: #3498db;">역할 및 권한</strong>
-                    <ul style="padding-left: 1rem; list-style: disc;">
-                `;
-                    data.roles.forEach(r => {
-                        html += `<li><strong>${r.roleName}</strong> (${r.description})<br/>
-                             권한: ${r.privileges.map(p => p.privilegeName).join(', ')}</li>`;
-                    });
-                    html += '</ul>';
-
-                    document.getElementById('employeeDetailContent').innerHTML = html;
-                    document.getElementById('employeeDetailModal').style.display = 'block';
+                        document.getElementById('employeeDetailContent').innerHTML = html;
+                        document.getElementById('employeeDetailModal').style.display = 'block';
+                    } else if (body.error) {
+                        alert(`오류: ${body.error.message}`);
+                    }
                 })
-                .catch(error => {
-                    console.error(error);
-                    alert("직원 정보 조회 중 오류가 발생했습니다.");
-                });
+                .catch(error => alert("직원 정보 조회 중 오류가 발생했습니다."));
         });
     });
 
 
     document.addEventListener("DOMContentLoaded", () => {
-        const modal = document.getElementById('employeeDetailModal');
-        const closeBtn = modal.querySelector('button');
-
-        closeBtn.addEventListener('click', () => {
-            modal.style.display = 'none';
-        });
-
-        // 세부보기 버튼
+        const detailModal = document.getElementById('employeeDetailModal');
+        const fullDetailModal = document.getElementById('employeeFullDetailModal');
         const viewMoreBtn = document.getElementById('viewMoreBtn');
-        let currentEmployeeId = null;
 
+        // 정보 보기 버튼
         document.querySelectorAll('.view-detail-btn').forEach(btn => {
             btn.addEventListener('click', () => {
                 const employeeId = btn.getAttribute('data-employee-id');
-                currentEmployeeId = employeeId; // 🔥 나중에 세부보기에서 사용
-                const url = `/employee-detail?employeeId=${encodeURIComponent(employeeId)}`;
-                // ... 기존 정보 보기 코드 (생략)
+                fetch(`/employee-detail?employeeId=${encodeURIComponent(employeeId)}`)
+                    .then(response => response.json())
+                    .then(body => {
+                        if (body.d) {
+                            const data = body.d;
+                            let html = `<dl>
+                            <dt>ID</dt><dd>${data.employeeId || '-'}</dd>
+                            <dt>이름</dt><dd>${data.firstName || '-'} ${data.lastName || '-'}</dd>
+                            <dt>부서</dt><dd>${data.departmentName || '-'}</dd>
+                            <dt>직급</dt><dd>${data.position || '-'}</dd>
+                            <dt>이메일</dt><dd>${data.workEmail || '-'}</dd>
+                            <dt>주소</dt><dd>${data.address || '-'}</dd>
+                            <dt>입사일</dt><dd>${data.hireDate || '-'}</dd>
+                        </dl>`;
+                            document.getElementById('employeeDetailContent').innerHTML = html;
+                            viewMoreBtn.setAttribute('data-employee-id', employeeId); // ✅ 여기에 항상 세팅
+                            detailModal.style.display = 'block';
+                        } else if (body.error) {
+                            alert(`오류: ${body.error.message}`);
+                        }
+                    });
             });
         });
 
+        // 세부보기 버튼
         viewMoreBtn.addEventListener('click', () => {
-            if (!currentEmployeeId) return;
-
-            const url = `/employee-detail?employeeId=${encodeURIComponent(currentEmployeeId)}`;
-            fetch(url)
-                .then(response => {
-                    if (!response.ok) throw new Error("세부 정보 조회 실패!");
-                    return response.json();
-                })
-                .then(data => {
-                    let html = '<dl>';
-                    for (const key in data) {
-                        let value = data[key];
-                        if (value === null || value === '') value = '-';
-
-                        // 🔥 객체나 배열인 경우 처리
-                        if (typeof value === 'object') {
-                            if (Array.isArray(value)) {
-                                // 배열 형태 (예: roles)
-                                if (key === 'roles') {
-                                    // 역할별로 보기 좋게 풀어쓰기
-                                    html += `<dt style="font-weight: bold; margin-top: 0.5rem;">${key}</dt>`;
-                                    html += '<dd><ul style="padding-left: 1rem; list-style: disc;">';
-                                    value.forEach(role => {
-                                        html += `<li><strong>${role.roleName}</strong> (${role.description})<br/>권한: ${role.privileges.map(p => p.privilegeName).join(', ')}</li>`;
-                                    });
-                                    html += '</ul></dd>';
-                                } else {
-                                    // 다른 배열은 JSON으로
-                                    html += `<dt>${key}</dt><dd>${JSON.stringify(value, null, 2)}</dd>`;
-                                }
-                            } else {
-                                // 단일 객체는 JSON
-                                html += `<dt>${key}</dt><dd><pre>${JSON.stringify(value, null, 2)}</pre></dd>`;
+            const employeeId = viewMoreBtn.getAttribute('data-employee-id');
+            if (!employeeId) {
+                alert("직원을 먼저 선택해 주세요.");
+                return;
+            }
+            fetch(`/employee-detail?employeeId=${encodeURIComponent(employeeId)}`)
+                .then(response => response.json())
+                .then(body => {
+                    if (body.d) {
+                        const data = body.d;
+                        let html = '<dl>';
+                        // 주요 필드(가독성 개선)
+                        const mainKeys = [
+                            "employeeId","firstName","lastName","middleName","birthDate","gender","nationality",
+                            "maritalStatus","position","jobTitle","department","departmentName","hireDate",
+                            "terminationDate","workEmail","workPhone","mobilePhone","address","bankAccount","taxId"
+                        ];
+                        mainKeys.forEach(key => {
+                            if (data[key] !== undefined) {
+                                html += `<dt style="font-weight:bold;margin-top:0.4em;">${key}</dt><dd>${data[key] || '-'}</dd>`;
                             }
-                        } else {
-                            // 단순 값은 그대로 출력
-                            html += `<dt style="font-weight: bold; margin-top: 0.5rem;">${key}</dt><dd>${value}</dd>`;
+                        });
+                        // roles 상세 구조화
+                        if (Array.isArray(data.roles)) {
+                            html += `<dt style="font-weight:bold;margin-top:0.6em;">Roles</dt>`;
+                            html += `<dd><ul style="padding-left:1em;">`;
+                            data.roles.forEach(role => {
+                                html += `<li style="margin-bottom:0.8em;">
+                                <div><b>역할명:</b> ${role.roleName || '-'} <small style="color:#888;">(${role.roleId || ''})</small></div>
+                                <div style="margin-left:0.6em;"><b>설명:</b> ${role.description || '-'}</div>
+                                <div style="margin-left:0.6em;margin-top:0.2em;">
+                                    <b>권한:</b>
+                                    <ul style="padding-left:1em;">${
+                                    (role.privileges||[]).map(p =>
+                                        `<li>${p.privilegeName || '-'} <small style="color:#888;">(${p.privilegeId||''})</small>: ${p.description||'-'}</li>`
+                                    ).join('')
+                                }</ul>
+                                </div>
+                            </li>`;
+                            });
+                            html += '</ul></dd>';
                         }
+                        html += '</dl>';
+                        document.getElementById('employeeFullDetailContent').innerHTML = html;
+                        fullDetailModal.style.display = 'block';
+                    } else if (body.error) {
+                        alert(`오류: ${body.error.message}`);
                     }
-                    html += '</dl>';
-
-                    document.getElementById('employeeFullDetailContent').innerHTML = html;
-                    document.getElementById('employeeFullDetailModal').style.display = 'block';
-                })
-                .catch(error => {
-                    console.error(error);
-                    alert("세부 정보 조회 중 오류가 발생했습니다.");
                 });
         });
+
+        // 모달 닫힐 때 employeeId도 비우기 (안전)
+        detailModal.querySelector('button[onclick]').addEventListener('click', () => {
+            viewMoreBtn.removeAttribute('data-employee-id');
+        });
     });
+
 
     // 권한 검사
     document.addEventListener("DOMContentLoaded", () => {
@@ -400,13 +419,20 @@
                 const url = `/check-authorization?employeeId=${encodeURIComponent(employeeId)}&object=${encodeURIComponent(object)}&field=${encodeURIComponent(field)}&value=${encodeURIComponent(value)}`;
 
                 fetch(url)
-                    .then(response => {
-                        if (!response.ok) throw new Error("권한 검사 실패!");
-                        return response.json();
-                    })
-                    .then(data => {
-                        console.log("✅ 권한 검사 결과:", data);
-                        alert(`사용자 ${employeeId}\n권한 객체 : ${object}\n필드 : ${field}\n값 : ${value}\n\n권한 존재 여부 : ${data.hasAuthorization}`);
+                    .then(response => response.json().then(json => ({ status: response.status, body: json })))
+                    .then(({ status, body }) => {
+                        if (status === 200 && body.d) {
+                            // OData2 정상 응답: body.d.hasAuthorization
+                            alert(
+                                `사용자 ${employeeId}\n` +
+                                `권한 객체 : ${object}\n필드 : ${field}\n값 : ${value}\n\n` +
+                                `권한 존재 여부 : ${body.d.hasAuthorization ? "✅ 있음" : "❌ 없음"}`
+                            );
+                        } else if (body.error) {
+                            alert(`[오류]\n${body.error.message}`);
+                        } else {
+                            alert("권한 검사 결과를 확인할 수 없습니다.");
+                        }
                     })
                     .catch(error => {
                         console.error(error);
